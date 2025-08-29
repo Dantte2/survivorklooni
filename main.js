@@ -24,21 +24,21 @@ function preload() {
         frameWidth: 16,
         frameHeight: 16
     });
-    //loads player spritesheet
-    this.load.spritesheet('playerSheet', 'assets/player/rogues.png',{
-        frameWidth: 32,
-        frameHeight: 32
+    // Load player spritesheet with idle animations
+    this.load.spritesheet('playerSheet', 'assets/player/idle/idleAnimations.png', {
+        frameWidth: 64,
+        frameHeight: 64
     });
 }
 
 function shootBullet() {
     // Create bullet at player's current position
     const bullet = this.bullet.create(this.player.x, this.player.y);
-    
+
     bullet.play('fireBullet');          // play animation
     bullet.setScale(2);                  // scale bullet up
     bullet.body.setAllowGravity(false); // no gravity on bullets
-    
+
     // Calculate flip and rotation based on playerDirectionX/Y
     const dirX = this.playerDirectionX;
     const dirY = this.playerDirectionY;
@@ -83,7 +83,7 @@ function create() {
         repeat: -1
     });
 
-    // Auto-shoot every 500 ms
+    // Auto-shoot every 1000 ms
     this.time.addEvent({
         delay: 1000,
         callback: shootBullet,
@@ -100,6 +100,12 @@ function create() {
     body.setCollideWorldBounds(true);
     body.setCircle(20);
     body.setOffset(-20, -20);
+
+    // Add drag to stop sliding
+    body.setDrag(1000, 1000);
+
+    // Limit max velocity
+    body.setMaxVelocity(200, 200);
 
     this.playerSpeed = 200;
 
@@ -125,9 +131,9 @@ function update() {
         }
     });
 
-    // Reset player velocity
+    // Reset player velocity explicitly for both axes
     const body = this.player.body;
-    body.setVelocity(0);
+    body.setVelocity(0, 0);
 
     // Track current input direction
     let newDirX = 0;
@@ -163,4 +169,3 @@ function update() {
         this.playerDirectionY = 0;
     }
 }
-
