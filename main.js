@@ -90,16 +90,18 @@ function create() {
         repeat: -1
     });
 
-    // Create player sprite
+    // Create player sprite and scale it up 2x
     this.player = this.physics.add.sprite(400, 300, 'playerSheet', 6);
+    const scale = 2;
+    this.player.setScale(scale);
     this.player.setCollideWorldBounds(true);
     this.player.play('idle_down');
 
     const body = this.player.body;
     body.setCollideWorldBounds(true);
-    body.setCircle(20);
-    body.setOffset(-20, -20);
-    body.setDrag(1000, 1000);        // Smooth stop, no sliding
+    body.setCircle(20 * scale);           // scale the circle radius
+    body.setOffset(-20 * scale, -20 * scale); // scale the offset
+    body.setDrag(1000, 1000);              // Smooth stop, no sliding
     body.setMaxVelocity(200, 200);
 
     this.playerSpeed = 200;
