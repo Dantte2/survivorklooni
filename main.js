@@ -19,97 +19,92 @@ const config = {
 const game = new Phaser.Game(config);
 
 function preload() {
-    // Load your bullet spritesheet, 16x16 frames
-    this.load.spritesheet('bullets', 'assets/bullets/firebullets.png', {
-        frameWidth: 16,
-        frameHeight: 16
+    // idle animations
+    this.load.spritesheet('playerSheet', 'assets/player/idle/pinkidle.png', {
+        frameWidth: 32,
+        frameHeight: 32
     });
-    // Load player spritesheet with idle animations
-    this.load.spritesheet('playerSheet', 'assets/player/idle/idleAnimations.png', {
-        frameWidth: 64,
-        frameHeight: 64
+    //walking animation
+    this.load.spritesheet('playerWalk', 'assets/player/moving/pnikwalking.png', {
+        frameWidth: 32,
+        frameHeight: 32
     });
-}
-
-function shootBullet() {
-    // Create bullet at player's current position
-    const bullet = this.bullet.create(this.player.x, this.player.y);
-
-    bullet.play('fireBullet');          // play animation
-    bullet.setScale(2);                  // scale bullet up
-    bullet.body.setAllowGravity(false); // no gravity on bullets
-
-    // Calculate flip and rotation based on playerDirectionX/Y
-    const dirX = this.playerDirectionX;
-    const dirY = this.playerDirectionY;
-
-    if (dirX === -1 && dirY === 0) {
-        // Shooting left — flip horizontally
-        bullet.setFlipX(true);
-        bullet.setRotation(0);
-    } else if (dirX === 0 && dirY === -1) {
-        // Shooting up — rotate -90 degrees
-        bullet.setFlipX(false);
-        bullet.setRotation(-Math.PI / 2);
-    } else if (dirX === 0 && dirY === 1) {
-        // Shooting down — rotate 90 degrees
-        bullet.setFlipX(false);
-        bullet.setRotation(Math.PI / 2);
-    } else if (dirX === 1 && dirY === 0) {
-        // Shooting right — no flip, no rotation
-        bullet.setFlipX(false);
-        bullet.setRotation(0);
-    } else {
-        // Diagonal shooting — no flip, rotate to angle
-        bullet.setFlipX(false);
-        const angle = Math.atan2(dirY, dirX);
-        bullet.setRotation(angle);
-    }
-
-    // Set bullet velocity based on direction & speed
-    const speed = 300;
-    bullet.body.setVelocityX(speed * dirX);
-    bullet.body.setVelocityY(speed * dirY);
 }
 
 function create() {
-    this.bullet = this.physics.add.group(); // bullet group
-
-    // Create bullet animation frames 456-459 (your spritesheet frames)
+    //player walking animations all directions
     this.anims.create({
-        key: 'fireBullet',
-        frames: this.anims.generateFrameNumbers('bullets', { start: 456, end: 459 }),
-        frameRate: 10,
+        key: 'walk_right',
+        frames: this.anims.generateFrameNumbers('playerWalk', { start: 13, end: 16 }),
+        frameRate: 8,
         repeat: -1
     });
 
-    // Auto-shoot every 1000 ms
-    this.time.addEvent({
-        delay: 1000,
-        callback: shootBullet,
-        callbackScope: this,
-        loop: true
+    this.anims.create({
+        key: 'walk_left',
+        frames: this.anims.generateFrameNumbers('playerWalk', { start: 9, end: 11 }),
+        frameRate: 8,
+        repeat: -1
     });
 
-    // Create player with physics
-    this.player = this.physics.add.sprite(400, 300, 'playerSheet', 40);
-    this.player.setCollideWorldBounds(true);
+    this.anims.create({
+        key: 'walk_up',
+        frames: this.anims.generateFrameNumbers('playerWalk', { start: 1, end: 3 }),
+        frameRate: 8,
+        repeat: -1
+    });
 
-    // Configure player physics body
+    this.anims.create({
+        key: 'walk_down',
+        frames: this.anims.generateFrameNumbers('playerWalk', { start: 5, end: 7 }),
+        frameRate: 8,
+        repeat: -1
+    });
+
+    // Player idle animations for all directions
+    this.anims.create({
+        key: 'idle_down',
+        frames: this.anims.generateFrameNumbers('playerSheet', { start: 6, end: 9 }),
+        frameRate: 6,
+        repeat: -1
+    });
+
+    this.anims.create({
+        key: 'idle_right',
+        frames: this.anims.generateFrameNumbers('playerSheet', { start: 16, end: 20 }),
+        frameRate: 6,
+        repeat: -1
+    });
+
+    this.anims.create({
+        key: 'idle_left',
+        frames: this.anims.generateFrameNumbers('playerSheet', { start: 11, end: 14 }),
+        frameRate: 6,
+        repeat: -1
+    });
+
+    this.anims.create({
+        key: 'idle_up',
+        frames: this.anims.generateFrameNumbers('playerSheet', { start: 1, end: 4 }),
+        frameRate: 6,
+        repeat: -1
+    });
+
+    // Create player sprite
+    this.player = this.physics.add.sprite(400, 300, 'playerSheet', 6);
+    this.player.setCollideWorldBounds(true);
+    this.player.play('idle_down');
+
     const body = this.player.body;
     body.setCollideWorldBounds(true);
     body.setCircle(20);
     body.setOffset(-20, -20);
-
-    // Add drag to stop sliding
-    body.setDrag(1000, 1000);
-
-    // Limit max velocity
+    body.setDrag(1000, 1000);        // Smooth stop, no sliding
     body.setMaxVelocity(200, 200);
 
     this.playerSpeed = 200;
 
-    // Keyboard inputs setup
+    // Keyboard inputs
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -124,48 +119,73 @@ function create() {
 }
 
 function update() {
-    // Remove offscreen bullets
-    this.bullet.children.each(bullet => {
-        if (bullet.x > 800 || bullet.x < 0 || bullet.y > 600 || bullet.y < 0) {
-            bullet.destroy();
-        }
-    });
-
-    // Reset player velocity explicitly for both axes
     const body = this.player.body;
-    body.setVelocity(0, 0);
+    body.setVelocity(0);
 
-    // Track current input direction
     let newDirX = 0;
     let newDirY = 0;
 
-    // Horizontal movement input
+    // Only allow horizontal or vertical movement, no diagonal
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
-        body.setVelocityX(-this.playerSpeed);
         newDirX = -1;
     } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
-        body.setVelocityX(this.playerSpeed);
         newDirX = 1;
-    }
-
-    // Vertical movement input
-    if (this.cursors.up.isDown || this.wasd.up.isDown) {
-        body.setVelocityY(-this.playerSpeed);
+    } else if (this.cursors.up.isDown || this.wasd.up.isDown) {
         newDirY = -1;
     } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
-        body.setVelocityY(this.playerSpeed);
         newDirY = 1;
     }
 
-    // Update facing direction only if input detected
+    body.setVelocityX(newDirX * this.playerSpeed);
+    body.setVelocityY(newDirY * this.playerSpeed);
+
+    // Update direction only if moving
     if (newDirX !== 0 || newDirY !== 0) {
         this.playerDirectionX = newDirX;
         this.playerDirectionY = newDirY;
-    }
 
-    // Set default facing right if undefined
-    if (typeof this.playerDirectionX === 'undefined' || typeof this.playerDirectionY === 'undefined') {
-        this.playerDirectionX = 1;
-        this.playerDirectionY = 0;
+        // Play walking animation based on direction
+        if (newDirX === 1) {
+            if (this.player.anims.currentAnim?.key !== 'walk_right') {
+                this.player.play('walk_right');
+            }
+            this.player.setFlipX(false);
+        } else if (newDirX === -1) {
+            if (this.player.anims.currentAnim?.key !== 'walk_right') {
+                this.player.play('walk_right');
+            }
+            this.player.setFlipX(true);
+        } else if (newDirY === 1) {
+            if (this.player.anims.currentAnim?.key !== 'walk_down') {
+                this.player.play('walk_down');
+            }
+        } else if (newDirY === -1) {
+            if (this.player.anims.currentAnim?.key !== 'walk_up') {
+                this.player.play('walk_up');
+            }
+        }
+    } else {
+        // Player stopped: play idle animation based on last direction
+        if (this.playerDirectionX === 1) {
+            if (this.player.anims.currentAnim?.key !== 'idle_right') {
+                this.player.play('idle_right');
+            }
+            this.player.setFlipX(false);
+        } else if (this.playerDirectionX === -1) {
+            if (this.player.anims.currentAnim?.key !== 'idle_right') {
+                this.player.play('idle_right');
+            }
+            this.player.setFlipX(true);
+        } else if (this.playerDirectionY === 1) {
+            if (this.player.anims.currentAnim?.key !== 'idle_down') {
+                this.player.play('idle_down');
+            }
+            this.player.setFlipX(false);
+        } else if (this.playerDirectionY === -1) {
+            if (this.player.anims.currentAnim?.key !== 'idle_up') {
+                this.player.play('idle_up');
+            }
+            this.player.setFlipX(false);
+        }
     }
 }
