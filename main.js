@@ -24,6 +24,11 @@ function preload() {
         frameWidth: 16,
         frameHeight: 16
     });
+    //loads player spritesheet
+    this.load.spritesheet('playerSheet', 'assets/player/rogues.png',{
+        frameWidth: 32,
+        frameHeight: 32
+    });
 }
 
 function shootBullet() {
@@ -86,9 +91,9 @@ function create() {
         loop: true
     });
 
-    // Create player circle with physics
-    this.player = this.add.circle(400, 300, 20, 0x00ff00);
-    this.physics.add.existing(this.player);
+    // Create player with physics
+    this.player = this.physics.add.sprite(400, 300, 'playerSheet', 40);
+    this.player.setCollideWorldBounds(true);
 
     // Configure player physics body
     const body = this.player.body;
