@@ -6,7 +6,8 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: false
+            debug: true,
+            gravity: { y: 1100 },
         }
     },
     scene: {
@@ -19,94 +20,86 @@ const config = {
 const game = new Phaser.Game(config);
 
 function preload() {
-    // idle animations
-    this.load.spritesheet('playerSheet', 'assets/player/idle/pinkidle.png', {
-        frameWidth: 32,
-        frameHeight: 32
+    this.load.spritesheet('playerIdle', 'assets/player/idle/idle-sheet.png', {
+        frameWidth: 64,
+        frameHeight: 64
     });
-    //walking animation
-    this.load.spritesheet('playerWalk', 'assets/player/moving/pnikwalking.png', {
-        frameWidth: 32,
-        frameHeight: 32
+
+    this.load.spritesheet('playerwalk', 'assets/player/moving/run-sheet.png', {
+        frameWidth: 80,
+        frameHeight: 64
+    });
+
+    this.load.spritesheet('playerjump', 'assets/player/jumpstart/jump-start-sheet.png', {
+        frameWidth: 64,
+        frameHeight: 64
+    });
+
+    this.load.spritesheet('playerland', 'assets/player/jumpend/jump-end-sheet.png', {
+        frameWidth: 64,
+        frameHeight: 64
     });
 }
 
 function create() {
-    //player walking animations all directions
-    this.anims.create({
-        key: 'walk_right',
-        frames: this.anims.generateFrameNumbers('playerWalk', { start: 13, end: 16 }),
-        frameRate: 8,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'walk_left',
-        frames: this.anims.generateFrameNumbers('playerWalk', { start: 9, end: 11 }),
-        frameRate: 8,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'walk_up',
-        frames: this.anims.generateFrameNumbers('playerWalk', { start: 1, end: 3 }),
-        frameRate: 8,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'walk_down',
-        frames: this.anims.generateFrameNumbers('playerWalk', { start: 5, end: 7 }),
-        frameRate: 8,
-        repeat: -1
-    });
-
-    // Player idle animations for all directions
-    this.anims.create({
-        key: 'idle_down',
-        frames: this.anims.generateFrameNumbers('playerSheet', { start: 6, end: 9 }),
-        frameRate: 6,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'idle_right',
-        frames: this.anims.generateFrameNumbers('playerSheet', { start: 16, end: 20 }),
-        frameRate: 6,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'idle_left',
-        frames: this.anims.generateFrameNumbers('playerSheet', { start: 11, end: 14 }),
-        frameRate: 6,
-        repeat: -1
-    });
-
-    this.anims.create({
-        key: 'idle_up',
-        frames: this.anims.generateFrameNumbers('playerSheet', { start: 1, end: 4 }),
-        frameRate: 6,
-        repeat: -1
-    });
-
-    // Create player sprite and scale it up 2x
-    this.player = this.physics.add.sprite(400, 300, 'playerSheet', 6);
-    const scale = 2;
-    this.player.setScale(scale);
+    // Create player sprite from idle spritesheet
+    this.player = this.physics.add.sprite(400, 300, 'playerIdle', 0);
+    this.player.setOrigin(0.5, 1);
     this.player.setCollideWorldBounds(true);
-    this.player.play('idle_down');
 
-    const body = this.player.body;
-    body.setCollideWorldBounds(true);
-    body.setCircle(20 * scale);           // scale the circle radius
-    body.setOffset(-20 * scale, -20 * scale); // scale the offset
-    body.setDrag(1000, 1000);              // Smooth stop, no sliding
-    body.setMaxVelocity(200, 200);
+    // Set physics body size to better match idle sprite
+    this.player.body.setSize(48, 64); // narrower than sprite width for better collision
 
+    // idle animation
+    this.anims.create({
+        key: 'idle',
+        frames: this.anims.generateFrameNumbers('playerIdle', { start: 0, end: 3 }),
+        frameRate: 5,
+        repeat: -1
+    });
+
+    // run animation
+    this.anims.create({
+        key: 'walk',
+        frames: this.anims.generateFrameNumbers('playerwalk', { start: 0, end: 7 }),
+        frameRate: 10,
+        repeat: -1
+    });
+
+    // jump animation
+    this.anims.create({
+        key: 'jump',
+        frames: this.anims.generateFrameNumbers('playerjump', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: 0
+    });
+
+    // landing animation
+    this.anims.create({
+        key: 'land',
+        frames: this.anims.generateFrameNumbers('playerland', { start: 0, end: 2 }),
+        frameRate: 8,
+        repeat: 0
+    });
+
+    // Play idle animation by default
+    this.player.play('idle');
+
+    // Create ground
+    this.ground = this.physics.add.staticGroup();
+    this.ground.create(400, 590, null).setDisplaySize(800, 20).refreshBody();
+
+    // Collisions
+    this.physics.add.collider(this.player, this.ground);
+
+    // Player movement config
     this.playerSpeed = 200;
+    this.jumpVelocity = -600;
 
-    // Keyboard inputs
+    // Add some horizontal drag for smoother stops
+    this.player.body.setDragX(800);
+
+    // Input keys
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
         up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -115,79 +108,88 @@ function create() {
         right: Phaser.Input.Keyboard.KeyCodes.D
     });
 
-    // Default facing right
-    this.playerDirectionX = 1;
-    this.playerDirectionY = 0;
+    // Variables to track vertical velocity and landing state
+    this.prevVelocityY = 0;
+    this.falling = false;
+    this.landingPlaying = false;
+    this.wasOnGround = true;
+
+    // When landing animation completes, go to idle if still landing
+    this.player.on('animationcomplete-land', () => {
+        if (this.landingPlaying) {
+            this.player.play('idle');
+            this.landingPlaying = false;
+        }
+    });
 }
 
 function update() {
     const body = this.player.body;
-    body.setVelocity(0);
+    let velocityX = 0;
 
-    let newDirX = 0;
-    let newDirY = 0;
-
-    // Only allow horizontal or vertical movement, no diagonal
+    // Left/right movement
     if (this.cursors.left.isDown || this.wasd.left.isDown) {
-        newDirX = -1;
+        velocityX = -this.playerSpeed;
+        this.player.setFlipX(true);
+        this.player.body.setSize(60, 64);
     } else if (this.cursors.right.isDown || this.wasd.right.isDown) {
-        newDirX = 1;
-    } else if (this.cursors.up.isDown || this.wasd.up.isDown) {
-        newDirY = -1;
-    } else if (this.cursors.down.isDown || this.wasd.down.isDown) {
-        newDirY = 1;
+        velocityX = this.playerSpeed;
+        this.player.setFlipX(false);
+        this.player.body.setSize(60, 64);
+    } else {
+        this.player.body.setSize(48, 64);
     }
 
-    body.setVelocityX(newDirX * this.playerSpeed);
-    body.setVelocityY(newDirY * this.playerSpeed);
+    body.setVelocityX(velocityX);
 
-    // Update direction only if moving
-    if (newDirX !== 0 || newDirY !== 0) {
-        this.playerDirectionX = newDirX;
-        this.playerDirectionY = newDirY;
+    const onGround = body.blocked.down;
 
-        // Play walking animation based on direction
-        if (newDirX === 1) {
-            if (this.player.anims.currentAnim?.key !== 'walk_right') {
-                this.player.play('walk_right');
+    // Detect start of fall (velocityY switches from <=0 to >0)
+    if (!onGround && this.prevVelocityY <= 0 && body.velocity.y > 0) {
+        this.falling = true;
+        this.player.play('land', true);  // Play landing animation when starting to fall
+    }
+
+    // Jump input
+    if ((this.cursors.up.isDown || this.wasd.up.isDown) && onGround) {
+        body.setVelocityY(this.jumpVelocity);
+        this.player.play('jump', true);
+        this.falling = false;
+        this.landingPlaying = false;
+    }
+
+    if (onGround) {
+        if (!this.wasOnGround) {
+            // Just landed on ground
+            this.landingPlaying = true;
+            this.falling = false;
+            this.player.play('land');
+        }
+
+        if (this.landingPlaying) {
+            if (velocityX !== 0) {
+                this.player.play('walk');
+                this.landingPlaying = false;
             }
-            this.player.setFlipX(false);
-        } else if (newDirX === -1) {
-            if (this.player.anims.currentAnim?.key !== 'walk_right') {
-                this.player.play('walk_right');
-            }
-            this.player.setFlipX(true);
-        } else if (newDirY === 1) {
-            if (this.player.anims.currentAnim?.key !== 'walk_down') {
-                this.player.play('walk_down');
-            }
-        } else if (newDirY === -1) {
-            if (this.player.anims.currentAnim?.key !== 'walk_up') {
-                this.player.play('walk_up');
+            // else wait for landing animation to finish
+        } else {
+            if (velocityX !== 0) {
+                if (this.player.anims.currentAnim?.key !== 'walk') {
+                    this.player.play('walk');
+                }
+            } else {
+                if (this.player.anims.currentAnim?.key !== 'idle') {
+                    this.player.play('idle');
+                }
             }
         }
     } else {
-        // Player stopped: play idle animation based on last direction
-        if (this.playerDirectionX === 1) {
-            if (this.player.anims.currentAnim?.key !== 'idle_right') {
-                this.player.play('idle_right');
-            }
-            this.player.setFlipX(false);
-        } else if (this.playerDirectionX === -1) {
-            if (this.player.anims.currentAnim?.key !== 'idle_right') {
-                this.player.play('idle_right');
-            }
-            this.player.setFlipX(true);
-        } else if (this.playerDirectionY === 1) {
-            if (this.player.anims.currentAnim?.key !== 'idle_down') {
-                this.player.play('idle_down');
-            }
-            this.player.setFlipX(false);
-        } else if (this.playerDirectionY === -1) {
-            if (this.player.anims.currentAnim?.key !== 'idle_up') {
-                this.player.play('idle_up');
-            }
-            this.player.setFlipX(false);
+        // Airborne and not falling start, keep jump animation if not already playing
+        if (!this.falling && this.player.anims.currentAnim?.key !== 'jump') {
+            this.player.play('jump');
         }
     }
+
+    this.prevVelocityY = body.velocity.y;
+    this.wasOnGround = onGround;
 }
