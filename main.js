@@ -74,8 +74,15 @@ function create() {
     });
 
     this.anims.create({
+        key: 'fall',
+        frames: this.anims.generateFrameNumbers('playerland', {start: 0, end: 1 }),
+        frameRate: 10,
+        repeat: 0
+    });
+
+    this.anims.create({
         key: 'land',
-        frames: this.anims.generateFrameNumbers('playerland', { start: 0, end: 2 }),
+        frames: this.anims.generateFrameNumbers('playerland', { start: 1, end: 2 }),
         frameRate: 10,
         repeat: 0
     });
@@ -194,32 +201,38 @@ function update() {
     if (justLanded && !this.landingPlaying && !blockAnim) {
         this.landingPlaying = true;
         this.player.play('land');
-        // Removed the lastLandingTime and cooldown here
     }
 
-    if (!blockAnim) {
-        if (!onGround) {
-            if (!this.falling && animKey !== 'jump') {
+   if (!blockAnim) {
+    if (!onGround) {
+        if (body.velocity.y > 0) {  // player is falling down
+            if (animKey !== 'fall') {
+                this.player.play('fall');
+            }
+        } else {  // player is rising up
+            if (animKey !== 'jump') {
                 this.player.play('jump');
             }
-            this.falling = true;
+        }
+        this.falling = true;
+    } else {
+        this.falling = false;
+        if (this.landingPlaying) {
+            // waiting for landing animation to finish
         } else {
-            this.falling = false;
-            if (this.landingPlaying) {
-                // waiting for landing animation to finish
+            if (velocityX !== 0) {
+                if (animKey !== 'walk') {
+                    this.player.play('walk');
+                }
             } else {
-                if (velocityX !== 0) {
-                    if (animKey !== 'walk') {
-                        this.player.play('walk');
-                    }
-                } else {
-                    if (animKey !== 'idle') {
-                        this.player.play('idle');
-                    }
+                if (animKey !== 'idle') {
+                    this.player.play('idle');
                 }
             }
         }
     }
+}
+
 
     this.prevVelocityY = body.velocity.y;
     this.wasOnGround = onGround;
