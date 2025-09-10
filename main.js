@@ -1,12 +1,13 @@
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: 1920,
+    height: 1080,
+    pixelArt: true,
     backgroundColor: '#1d1d1d',
     physics: {
         default: 'arcade',
         arcade: {
-            // debug: true, // Uncomment for debugging physics bodies
+            debug: true, //for debugging physics bodies
             gravity: { y: 1100 },
         }
     },
@@ -48,12 +49,15 @@ function preload() {
 
     //load tiles
     this.load.image('tiles', 'assets/tiles/tiles.png');
-    this.load.tilemapTiledJSON('map', 'assets/tiles/tiledtest.json');
+    this.load.image('sky', 'assets/tiles/sky.png');
+    this.load.image('Yellow-Tree', 'assets/tiles/Yellow-Tree.png');
+    this.load.image('background', 'assets/tiles/background.png');
+    this.load.tilemapTiledJSON('map', 'assets/tiles/testi.json');
 }
 
 function create() {
     // Create player sprite with physics enabled, positioned at (400, 300)
-    this.player = this.physics.add.sprite(400, 300, 'playerIdle', 0);
+    this.player = this.physics.add.sprite(400, 1300, 'playerIdle', 0);
 
     // Set origin to bottom-center of the sprite (important for jumping/landing visuals)
     this.player.setOrigin(0.5, 1);
@@ -63,6 +67,41 @@ function create() {
 
     // Adjust player physics body size for better collision
     this.player.body.setSize(48, 64);
+
+    //create map
+   const map = this.make.tilemap({ key: 'map' });
+
+    // Add tilesets matching your tileset names in Tiled and preload keys
+    const backgroundTileset = map.addTilesetImage('Background', 'background');
+    const skyTileset = map.addTilesetImage('sky', 'sky');
+    const tilesTileset = map.addTilesetImage('Tiles', 'tiles');
+    const yellowTreeTileset = map.addTilesetImage('Yellow-Tree', 'Yellow-Tree');
+
+    // Create layers by their names from Tiled
+    const backgroundLayer = map.createLayer('background', [tilesTileset, skyTileset], 0, 0);
+    const cliffsLayer = map.createLayer('cliffs', backgroundTileset, 0, 0);
+    const trees2Layer = map.createLayer('trees2', backgroundTileset, 0, 0);
+    const treesLayer = map.createLayer('trees', [backgroundTileset, yellowTreeTileset], 0, 0);
+    const groundLayer = map.createLayer('ground', tilesTileset, 0, 0);
+    const decorLayer = map.createLayer('decor', tilesTileset, 0, 0);    
+
+    this.player.setDepth(10);
+    
+    // Make camera follow the player
+    this.cameras.main.startFollow(this.player);
+
+    // Set camera bounds to match the tilemap size
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    
+
+
+    // Setup collision only on the ground layer
+    groundLayer.setCollisionByProperty({ collides: true });
+    this.physics.add.collider(this.player, groundLayer);
+    
+
+
 
     // Create all animations from loaded spritesheets
     this.anims.create({
@@ -117,12 +156,12 @@ function create() {
     // Start player state at idle
     this.playerState = 'idle';
 
+    //debug platform ===================================
     // Create ground as a static physics group for collision
-    this.ground = this.physics.add.staticGroup();
-    this.ground.create(400, 590, null).setDisplaySize(800, 20).refreshBody();
-
-    // Set up collision between player and ground
-    this.physics.add.collider(this.player, this.ground);
+    // this.ground = this.physics.add.staticGroup();
+    // this.ground.create(400, 590, null).setDisplaySize(800, 20).refreshBody();
+    // this.physics.add.collider(this.player, this.ground);
+    //debug platform =============================================
 
     // Player movement and jump speeds
     this.playerSpeed = 200;
