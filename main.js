@@ -79,7 +79,7 @@ function create() {
     const cliffsLayer = map.createLayer('cliffs', backgroundTileset, 0, 0);
     const trees2Layer = map.createLayer('trees2', backgroundTileset, 0, 0);
     const treesLayer = map.createLayer('trees', [backgroundTileset, yellowTreeTileset], 0, 0);
-    const groundLayer = map.createDynamicLayer('ground', tilesTileset, 0, 0);
+    const groundLayer = map.createLayer('ground', tilesTileset, 0, 0);
     const decorLayer = map.createLayer('decor', tilesTileset, 0, 0);
     console.log('animatedTiles plugin:', this.animatedTiles);
     this.sys.animatedTiles.init(map);
