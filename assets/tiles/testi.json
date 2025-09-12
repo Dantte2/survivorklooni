@@ -667,9 +667,53 @@
          "width":200,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":11,
+         "name":"spawn",
+         "objects":[
+                {
+                 "height":62.6666666666667,
+                 "id":1,
+                 "name":"playerspawn",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":55.3333333333333,
+                 "x":22,
+                 "y":1471.33333333333
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":14,
+         "name":"collision",
+         "objects":[
+                {
+                 "height":62,
+                 "id":14,
+                 "name":"collision",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":458.5,
+                 "x":8.5,
+                 "y":1536
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":11,
- "nextobjectid":1,
+ "nextlayerid":15,
+ "nextobjectid":16,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
@@ -687,6 +731,34 @@
          "tilecount":625,
          "tileheight":16,
          "tiles":[
+                {
+                 "animation":[
+                        {
+                         "duration":200,
+                         "tileid":68
+                        }, 
+                        {
+                         "duration":200,
+                         "tileid":69
+                        }, 
+                        {
+                         "duration":200,
+                         "tileid":70
+                        }, 
+                        {
+                         "duration":200,
+                         "tileid":71
+                        }, 
+                        {
+                         "duration":200,
+                         "tileid":72
+                        }, 
+                        {
+                         "duration":200,
+                         "tileid":73
+                        }],
+                 "id":74
+                }, 
                 {
                  "animation":[
                         {

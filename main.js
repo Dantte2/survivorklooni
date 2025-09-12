@@ -7,9 +7,18 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: {
-            debug: true, //for debugging physics bodies
+            debug: true,
             gravity: { y: 1100 },
         }
+    },
+    plugins: {
+        scene: [
+            {
+                key: 'AnimatedTiles',
+                plugin: window.AnimatedTiles, 
+                mapping: 'animatedTiles'
+            }
+        ]
     },
     scene: {
         preload,
@@ -56,25 +65,13 @@ function preload() {
 }
 
 function create() {
-    // Create player sprite with physics enabled, positioned at (400, 300)
-    this.player = this.physics.add.sprite(400, 1300, 'playerIdle', 0);
-
-    // Set origin to bottom-center of the sprite (important for jumping/landing visuals)
-    this.player.setOrigin(0.5, 1);
-
-    // Prevent player from leaving game world bounds
-    this.player.setCollideWorldBounds(true);
-
-    // Adjust player physics body size for better collision
-    this.player.body.setSize(48, 64);
-
-    //create map
-   const map = this.make.tilemap({ key: 'map' });
+    // ==== TILEMAP ====
+    const map = this.make.tilemap({ key: 'map' });
 
     // Add tilesets matching your tileset names in Tiled and preload keys
+    const tilesTileset = map.addTilesetImage('Tiles', 'tiles');
     const backgroundTileset = map.addTilesetImage('Background', 'background');
     const skyTileset = map.addTilesetImage('sky', 'sky');
-    const tilesTileset = map.addTilesetImage('Tiles', 'tiles');
     const yellowTreeTileset = map.addTilesetImage('Yellow-Tree', 'Yellow-Tree');
 
     // Create layers by their names from Tiled
@@ -82,28 +79,66 @@ function create() {
     const cliffsLayer = map.createLayer('cliffs', backgroundTileset, 0, 0);
     const trees2Layer = map.createLayer('trees2', backgroundTileset, 0, 0);
     const treesLayer = map.createLayer('trees', [backgroundTileset, yellowTreeTileset], 0, 0);
-    const groundLayer = map.createLayer('ground', tilesTileset, 0, 0);
-    const decorLayer = map.createLayer('decor', tilesTileset, 0, 0);    
-
-    this.player.setDepth(10);
+    const groundLayer = map.createDynamicLayer('ground', tilesTileset, 0, 0);
+    const decorLayer = map.createLayer('decor', tilesTileset, 0, 0);
+    console.log('animatedTiles plugin:', this.animatedTiles);
+    this.sys.animatedTiles.init(map);
     
-    // Make camera follow the player
-    this.cameras.main.startFollow(this.player);
+    // ==== SPAWN PLAYER FROM OBJECT LAYER ====
+    const spawnLayer = map.getObjectLayer('spawn');
+    console.log('spawnLayer:', spawnLayer);
+    let spawnX = 400;
+    let spawnY = 1300;
 
-    // Set camera bounds to match the tilemap size
+    if (!spawnLayer) {
+        console.warn("⚠️ Spawn layer not found! Using default spawn position.");
+    } else {
+        const playerSpawn = spawnLayer.objects.find(obj => obj.name === 'playerspawn');
+        console.log('playerSpawn:', playerSpawn);
+        if (playerSpawn) {
+            spawnX = playerSpawn.x;
+            spawnY = playerSpawn.y;
+        } else {
+            console.warn("⚠️ 'playerspawn' object not found in spawn layer. Using default.");
+        }
+    }
+
+    // ✅ Create the player at spawn position (whether default or object)
+    this.player = this.physics.add.sprite(spawnX, spawnY, 'playerIdle', 0);
+    this.player.setOrigin(0.5, 1);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setSize(48, 64);
+    this.player.setDepth(10);
+    decorLayer.setDepth(15);
+
+    // ==== CAMERA SETUP ====
+    this.cameras.main.startFollow(this.player);
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
     this.physics.world.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
-    
 
+    // ==== COLLISION FROM OBJECT LAYER 'collision' ====
+    const collisionObjects = map.getObjectLayer('collision');
 
-    // Setup collision only on the ground layer
-    groundLayer.setCollisionByProperty({ collides: true });
-    this.physics.add.collider(this.player, groundLayer);
-    
+    if (collisionObjects && collisionObjects.objects.length > 0) {
+        this.collisionGroup = this.physics.add.staticGroup();
 
+        collisionObjects.objects.forEach(obj => {
+            const centerX = obj.x + obj.width / 2;
+            const centerY = obj.y + obj.height / 2; // Important Y offset!
 
+            // Create a rectangle physics body (invisible)
+            const rect = this.collisionGroup.create(centerX, centerY, null);
+            rect.setOrigin(0.5, 0.5);
+            rect.body.setSize(obj.width, obj.height);
+        });
 
-    // Create all animations from loaded spritesheets
+        // Add collider between player and collision group
+        this.physics.add.collider(this.player, this.collisionGroup);
+    } else {
+        console.warn("No collision objects found in the 'collision' object layer!");
+    }
+
+    // ==== ANIMATIONS ====
     this.anims.create({
         key: 'idle',
         frames: this.anims.generateFrameNumbers('playerIdle', { start: 0, end: 3 }),
@@ -153,24 +188,13 @@ function create() {
         repeat: 0
     });
 
-    // Start player state at idle
+    // ==== PLAYER STATE ====
     this.playerState = 'idle';
-
-    //debug platform ===================================
-    // Create ground as a static physics group for collision
-    // this.ground = this.physics.add.staticGroup();
-    // this.ground.create(400, 590, null).setDisplaySize(800, 20).refreshBody();
-    // this.physics.add.collider(this.player, this.ground);
-    //debug platform =============================================
-
-    // Player movement and jump speeds
     this.playerSpeed = 200;
     this.jumpVelocity = -600;
-
-    // Add horizontal drag to slow player when no input
     this.player.body.setDragX(800);
 
-    // Create input handlers for cursors and WASD keys
+    // ==== INPUT ====
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys({
         space: Phaser.Input.Keyboard.KeyCodes.SPACE,
@@ -178,26 +202,21 @@ function create() {
         right: Phaser.Input.Keyboard.KeyCodes.D
     });
 
-    // Disable browser right-click context menu on game canvas
     this.input.mouse.disableContextMenu();
 
-    // Input: Attack on mouse left or right click, only if on ground and not already attacking
     this.input.on('pointerdown', (pointer) => {
-    if (pointer.leftButtonDown()) {
-        // Block left click in air
-        if (this.player.body.blocked.down && !['attack1', 'attack2'].includes(this.playerState)) {
-            changeState.call(this, 'attack1');
+        if (pointer.leftButtonDown()) {
+            if (this.player.body.blocked.down && !['attack1', 'attack2'].includes(this.playerState)) {
+                changeState.call(this, 'attack1');
+            }
+        } else if (pointer.rightButtonDown()) {
+            if (!['attack1', 'attack2'].includes(this.playerState)) {
+                changeState.call(this, 'attack2');
+            }
         }
-    } else if (pointer.rightButtonDown()) {
-        // Allow right click always
-        if (!['attack1', 'attack2'].includes(this.playerState)) {
-            changeState.call(this, 'attack2');
-        }
-    }
-});
+    });
 
-
-    // When attack animation finishes, decide next state based on player status
+    // ==== ANIMATION CALLBACKS ====
     this.player.on('animationcomplete-attack1', () => {
         if (!this.player.body.blocked.down) {
             changeState.call(this, 'fall');
@@ -218,7 +237,6 @@ function create() {
         }
     });
 
-    // When landing animation finishes, decide next state based on movement
     this.player.on('animationcomplete-land', () => {
         if (isMoving(this)) {
             changeState.call(this, 'walk');
@@ -227,11 +245,12 @@ function create() {
         }
     });
 
-    // Track if player was on the ground last frame (to detect landing)
     this.wasOnGround = true;
 }
 
-function update() {
+
+
+function update(time, delta) {
     const body = this.player.body;
     const onGround = body.blocked.down;
 
